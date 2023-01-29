@@ -1,0 +1,6 @@
+2023-01-29 11:41:31,148 INFO: Start sending email
+2023-01-29 11:41:31,149 INFO: Reading SMTP configurations from config.ini
+2023-01-29 11:41:31,149 INFO: Finished reading SMTP configurations
+2023-01-29 11:41:37,095 INFO: Email sent to abc@devopslite.com
+2023-01-29 11:41:41,405 INFO: Email sent to xyz@devopslite.com
+2023-01-29 11:41:41,406 INFO: Finished sending email

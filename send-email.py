@@ -2,64 +2,91 @@
 #
 # Author: Dung Pham
 # Site: https://devopslite.com
-# Use: this script use to send an email to a list of mail address with a html template
-######################################################################################
+# Use: this script used to send an email to a list of mail addresses with a html template
+#########################################################################################
 
-## Import libs
-# Lib to read smtp values
-import configparser
-# Lib to remove blank lines
-#import sys
-# Lib to validate email addresses
-import re
-# Lib to send emails with smtp server
 import smtplib
+import re
+import configparser
+import logging
+from email.mime.text import MIMEText
 
-## Read the SMTP configuration
-def configSmtp():
+def validate_email(email):
+    # Regular expression to validate email address
+    pattern = r"\"?([-a-zA-Z0-9.`?{}]+@\w+\.\w+)\"?"
+    return re.match(pattern, email)
+
+def get_config():
+    # Read config.ini and return the SMTP configurations
+    logging.info('Reading SMTP configurations from config.ini')
     config = configparser.ConfigParser()
-    config.read('config.cfg')
+    config.read('config.ini')
 
-    smtpHost = config.get('smtp', 'SMTP_HOST')
-    smtpUser = config.get('smtp', 'SMTP_USER')
-    smtpPass = config.get('smtp', 'SMTP_PASS')
-    smtpPort = config.get('smtp', 'SMTP_PORT')
-    smtpAuth = config.get('smtp', 'SMTP_AUTH')
-    smtpStartTls = config.get('smtp', 'SMTP_STARTTLS')
+    try:
+        config.get('SMTP', 'host')
+        config.get('SMTP', 'port')
+        config.get('SMTP', 'username')
+        config.get('SMTP', 'password')
+        config.get('SMTP', 'sender')
+        config.get('SMTP', 'sender_name')
+    except:
+        logging.error("error in reading config.ini")
+        return None
 
-## Remove all blank lines in the email list
-def removeBlankLine():
-    # Clear the file email-list.out
-    open("email-list.out", "w").close()
+    logging.info('Finished reading SMTP configurations')
+    return config['SMTP']
 
-    with open('email-list.in', 'r') as inputMailList:
-        with open('email-list.out', 'w') as outputMailList:
-            for line in inputMailList:
-                if not re.match(r'^\s*$', line):
-                    outputMailList.write(line)
-    
-    with open('email-list.out') as outputList:
-        for line in outputList.readlines():
-            line.rstrip('\n')
+def get_email_list():
+    # Read emails.txt and return a list of valid email addresses
+    with open('emails.txt', 'r') as f:
+        emails = f.readlines()
+    valid_emails = [email.strip() for email in emails if validate_email(email)]
+    return valid_emails
 
-## Validate email address
-def validateEmailAddress(emailAddress):
-    # Make a regular expression for validating an email address
-    regex = '([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+'
+def send_email(to, subject, message, config):
+    # Send email with HTML message to the specified recipient
+    try:
+        server = smtplib.SMTP_SSL(config['host'], config['port']) if config['port'] in ['465', '587'] else smtplib.SMTP(config['host'], config['port'])
+        server.ehlo()
+        server.login(config['username'], config['password'])
 
-    if(re.fullmatch(regex, emailAddress)):
-        print(emailAddress, 'is valid email address!')
-    else:
-        print(emailAddress, 'is invalid email address!')
+        msg = MIMEText(message, 'html')
+        msg['Subject'] = subject
+        msg['To'] = to
+        msg['From'] = f"{config['sender_name']} <{config['sender']}>"
 
-## Send emails
-def sendEmails():
-    with open('email-list.out', 'r') as mailList:
-        for email in mailList:
-            validateEmailAddress(email)
+        server.send_message(msg)
+        server.close()
+        logging.info(f"Email sent to {to}")
+    except Exception as e:
+        logging.error(f"Failed to send email to {to}: {e}")
 
+def read_message_html():
+    # Read HTML message from message.html file
+    with open("message.html", "r") as f:
+        return f.read()
 
-## Execute the functions
-#configSmtp()
-removeBlankLine()
-sendEmails()
+def main():
+    # Set up logging
+    logging.basicConfig(filename='email.log', level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s: %(message)s')
+    logging.info("Start sending email")
+
+    # Get SMTP configurations and valid email list
+    config = get_config()
+    to_list = get_email_list()
+
+    # Subject
+    subject = "Sample email from Python3"
+
+    # Read HTML message
+    message = read_message_html()
+
+    # Send email to each recipient
+    for to in to_list:
+        send_email(to, subject, message, config)
+
+    logging.info("Finished sending email")
+
+if __name__ == "__main__":
+    main()
