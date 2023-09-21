@@ -6,6 +6,7 @@
 #########################################################################################
 
 import smtplib
+import ssl
 import re
 import configparser
 import logging
@@ -45,8 +46,17 @@ def get_email_list():
 
 def send_email(to, subject, message, config):
     # Send email with HTML message to the specified recipient
+    context = ssl.create_default_context()
     try:
-        server = smtplib.SMTP_SSL(config['host'], config['port']) if config['port'] in ['465', '587'] else smtplib.SMTP(config['host'], config['port'])
+        if config['port'] in ['587']:
+            server = smtplib.SMTP(config['host'], config['port'])
+            server.ehlo()
+            server.starttls(context=context)
+        elif config['port'] in ['465']:
+            server = smtplib.SMTP_SSL(config['host'], config['port'])
+        else:
+            server = smtplib.SMTP(config['host'], config['port'])
+            
         server.ehlo()
         server.login(config['username'], config['password'])
 
